@@ -1,0 +1,881 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Checklist de Fiscalização — Condomínio</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --ink: #1a1a2e;
+    --ink-light: #4a4a6a;
+    --paper: #f8f6f1;
+    --cream: #f0ece3;
+    --gold: #c9a84c;
+    --gold-light: #e8d5a3;
+    --gold-pale: #faf5e8;
+    --red: #c0392b;
+    --green: #1e7e5e;
+    --blue: #1a5276;
+    --border: #ddd5c0;
+    --shadow: rgba(26,26,46,0.12);
+  }
+
+  body {
+    font-family: 'DM Sans', sans-serif;
+    background: var(--paper);
+    color: var(--ink);
+    min-height: 100vh;
+    padding: 0;
+  }
+
+  body.not-authenticated .authenticated-only {
+    display: none !important;
+  }
+
+  body.authenticated .login-prompt {
+    display: none !important;
+  }
+
+  /* MODAL LOGIN */
+  .modal-login {
+    display: none;
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0,0,0,0.5);
+    z-index: 1000;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .modal-login.show {
+    display: flex;
+  }
+
+  .login-box {
+    background: white;
+    border-radius: 14px;
+    padding: 40px;
+    max-width: 400px;
+    width: 100%;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+  }
+
+  .login-box h2 {
+    font-family: 'DM Serif Display', serif;
+    margin-bottom: 10px;
+    color: var(--ink);
+  }
+
+  .login-box p {
+    color: var(--ink-light);
+    margin-bottom: 24px;
+    font-size: 14px;
+  }
+
+  .login-form {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .login-form input {
+    padding: 10px 14px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 14px;
+  }
+
+  .login-form input:focus {
+    outline: none;
+    border-color: var(--gold);
+    box-shadow: 0 0 0 3px rgba(201,168,76,0.1);
+  }
+
+  .login-buttons {
+    display: flex;
+    gap: 10px;
+    margin-top: 16px;
+  }
+
+  .login-buttons button {
+    flex: 1;
+    padding: 10px;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    font-weight: 600;
+    font-size: 14px;
+  }
+
+  .btn-login {
+    background: var(--gold);
+    color: var(--ink);
+  }
+
+  .btn-signup {
+    background: var(--blue);
+    color: white;
+  }
+
+  .btn-login:hover { background: #b8952e; }
+  .btn-signup:hover { background: #0e3c5a; }
+
+  /* HEADER */
+  .header {
+    background: var(--ink);
+    color: white;
+    padding: 40px 48px 32px;
+    position: relative;
+    overflow: hidden;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 16px;
+  }
+
+  .header-left {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+  }
+
+  .logo-icon {
+    width: 52px; height: 52px;
+    background: var(--gold);
+    border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 26px;
+  }
+
+  .logo-text h1 {
+    font-family: 'DM Serif Display', serif;
+    font-size: 22px;
+    margin: 0;
+  }
+
+  .logo-text p {
+    font-size: 12px;
+    color: var(--gold-light);
+    margin: 0;
+  }
+
+  .header-right {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+  }
+
+  .user-info {
+    text-align: right;
+    font-size: 12px;
+  }
+
+  .user-info .email {
+    font-size: 13px;
+    margin-bottom: 4px;
+  }
+
+  .btn-logout {
+    background: var(--red);
+    border: none;
+    color: white;
+    padding: 8px 14px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 12px;
+    font-weight: 600;
+  }
+
+  .btn-logout:hover { background: #a02b22; }
+
+  /* CONTENT */
+  .content {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 40px 24px 60px;
+  }
+
+  /* SECTION */
+  .section {
+    background: white;
+    border-radius: 14px;
+    border: 1px solid var(--border);
+    margin-bottom: 28px;
+    overflow: hidden;
+    box-shadow: 0 2px 12px var(--shadow);
+  }
+
+  .section-header {
+    padding: 20px 28px;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    cursor: pointer;
+    user-select: none;
+    border-bottom: 2px solid var(--cream);
+    transition: background 0.15s;
+  }
+
+  .section-header:hover { background: var(--gold-pale); }
+
+  .section-icon {
+    width: 42px; height: 42px;
+    border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 20px;
+    flex-shrink: 0;
+    background: #fdf3d6;
+  }
+
+  .section-title {
+    font-family: 'DM Serif Display', serif;
+    font-size: 18px;
+    color: var(--ink);
+  }
+
+  .section-info { flex: 1; }
+
+  .chevron {
+    font-size: 18px;
+    color: var(--ink-light);
+    transition: transform 0.3s;
+  }
+
+  .section.collapsed .chevron { transform: rotate(-90deg); }
+
+  .section-body {
+    padding: 0 28px 24px;
+    overflow: hidden;
+    max-height: 2000px;
+    transition: max-height 0.4s ease, padding 0.3s;
+  }
+
+  .section.collapsed .section-body {
+    max-height: 0;
+    padding-top: 0;
+    padding-bottom: 0;
+  }
+
+  .form-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    margin-bottom: 16px;
+  }
+
+  .form-group {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .form-group label {
+    font-size: 12px;
+    color: var(--ink-light);
+    font-weight: 600;
+    margin-bottom: 6px;
+    text-transform: uppercase;
+  }
+
+  .form-group input,
+  .form-group textarea,
+  .form-group select {
+    padding: 10px 14px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 14px;
+    resize: vertical;
+  }
+
+  .form-group input:focus,
+  .form-group textarea:focus,
+  .form-group select:focus {
+    outline: none;
+    border-color: var(--gold);
+    box-shadow: 0 0 0 3px rgba(201,168,76,0.1);
+  }
+
+  .check-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 11px 14px;
+    border-radius: 8px;
+    margin-bottom: 8px;
+    cursor: pointer;
+  }
+
+  .check-item:hover { background: var(--gold-pale); }
+
+  .check-item input[type="radio"] {
+    margin-top: 4px;
+    cursor: pointer;
+  }
+
+  .check-label {
+    flex: 1;
+    font-size: 14px;
+    cursor: pointer;
+  }
+
+  .buttons-area {
+    display: flex;
+    gap: 12px;
+    margin-top: 24px;
+    flex-wrap: wrap;
+  }
+
+  button {
+    padding: 12px 24px;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    font-weight: 600;
+    font-size: 14px;
+    transition: 0.2s;
+  }
+
+  .btn-primary {
+    background: var(--gold);
+    color: var(--ink);
+  }
+
+  .btn-primary:hover { background: #b8952e; }
+
+  .btn-secondary {
+    background: var(--blue);
+    color: white;
+  }
+
+  .btn-secondary:hover { background: #0e3c5a; }
+
+  .btn-loading {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+
+  #toast {
+    position: fixed;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%) translateY(20px);
+    background: var(--ink);
+    color: white;
+    padding: 12px 20px;
+    border-radius: 8px;
+    opacity: 0;
+    transition: opacity 0.3s, transform 0.3s;
+    z-index: 999;
+    font-size: 14px;
+  }
+
+  @media (max-width: 600px) {
+    .form-row {
+      grid-template-columns: 1fr;
+    }
+
+    .header {
+      flex-direction: column;
+    }
+
+    .buttons-area {
+      flex-direction: column;
+    }
+
+    button { width: 100%; }
+  }
+</style>
+</head>
+<body class="not-authenticated">
+
+<!-- MODAL LOGIN -->
+<div id="modal-login" class="modal-login show">
+  <div class="login-box">
+    <h2>🔐 Checklist Vistoria</h2>
+    <p>Faça login para acessar</p>
+    <div class="login-form">
+      <input type="email" id="login-email" placeholder="seu@email.com">
+      <input type="password" id="login-password" placeholder="Senha">
+      <div class="login-buttons">
+        <button class="btn-login" onclick="handleLogin()">Login</button>
+        <button class="btn-signup" onclick="handleSignup()">Cadastro</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- HEADER -->
+<div class="header authenticated-only">
+  <div class="header-left">
+    <div class="logo-icon">📋</div>
+    <div class="logo-text">
+      <h1>Checklist Vistoria</h1>
+      <p>Fiscalização de Condomínios</p>
+    </div>
+  </div>
+  <div class="header-right">
+    <div class="user-info">
+      <div style="color: var(--gold-light)">Logado como:</div>
+      <div class="email" id="user-email">—</div>
+    </div>
+    <button class="btn-logout" onclick="handleLogout()">Logout</button>
+  </div>
+</div>
+
+<!-- CONTENT -->
+<div class="content authenticated-only">
+  <!-- DADOS DA VISTORIA -->
+  <div class="section">
+    <div class="section-header" onclick="toggleSection(event)">
+      <div class="section-icon">📋</div>
+      <div class="section-info">
+        <div class="section-title">Dados da Vistoria</div>
+      </div>
+      <div class="chevron">›</div>
+    </div>
+    <div class="section-body">
+      <div class="form-row">
+        <div class="form-group">
+          <label>Condomínio *</label>
+          <input id="condo" type="text" placeholder="Nome do condomínio">
+        </div>
+        <div class="form-group">
+          <label>Data *</label>
+          <input id="check-date" type="date">
+        </div>
+        <div class="form-group">
+          <label>Hora *</label>
+          <input id="check-time" type="time">
+        </div>
+        <div class="form-group">
+          <label>Turno</label>
+          <select id="check-turno">
+            <option value="">Selecione...</option>
+            <option value="Manhã">Manhã</option>
+            <option value="Tarde">Tarde</option>
+            <option value="Noite">Noite</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Observações Gerais</label>
+        <textarea id="obs-geral" placeholder="Observações gerais da vistoria..."></textarea>
+      </div>
+    </div>
+  </div>
+
+  <!-- ÁREA COMUM -->
+  <div class="section" id="area-comum">
+    <div class="section-header" onclick="toggleSection(event)">
+      <div class="section-icon">🏢</div>
+      <div class="section-info">
+        <div class="section-title">Área Comum</div>
+        <div style="font-size: 12px; color: var(--ink-light); margin-top: 2px;">Inspeção geral</div>
+      </div>
+      <div class="chevron">›</div>
+    </div>
+    <div class="section-body">
+      <!-- Limpeza -->
+      <div style="margin-bottom: 20px;">
+        <label style="font-size: 11px; font-weight: 600; text-transform: uppercase; color: var(--ink-light); display: block; margin-bottom: 8px;">Limpeza</label>
+        <div class="check-item">
+          <input type="radio" name="item-limpeza" value="ok" onchange="updateItem('item-limpeza', 'ok')">
+          <label class="check-label">✓ Conforme</label>
+        </div>
+        <div class="check-item">
+          <input type="radio" name="item-limpeza" value="nok" onchange="updateItem('item-limpeza', 'nok')">
+          <label class="check-label">✗ Não Conforme</label>
+        </div>
+        <div class="check-item">
+          <input type="radio" name="item-limpeza" value="na" onchange="updateItem('item-limpeza', 'na')">
+          <label class="check-label">- N/A</label>
+        </div>
+        <textarea id="obs-item-limpeza" placeholder="Observações..." style="width: 100%; padding: 8px; margin-top: 8px; border: 1px solid var(--border); border-radius: 6px; min-height: 50px;"></textarea>
+      </div>
+
+      <!-- Iluminação -->
+      <div style="margin-bottom: 20px;">
+        <label style="font-size: 11px; font-weight: 600; text-transform: uppercase; color: var(--ink-light); display: block; margin-bottom: 8px;">Iluminação</label>
+        <div class="check-item">
+          <input type="radio" name="item-iluminacao" value="ok" onchange="updateItem('item-iluminacao', 'ok')">
+          <label class="check-label">✓ Conforme</label>
+        </div>
+        <div class="check-item">
+          <input type="radio" name="item-iluminacao" value="nok" onchange="updateItem('item-iluminacao', 'nok')">
+          <label class="check-label">✗ Não Conforme</label>
+        </div>
+        <div class="check-item">
+          <input type="radio" name="item-iluminacao" value="na" onchange="updateItem('item-iluminacao', 'na')">
+          <label class="check-label">- N/A</label>
+        </div>
+        <textarea id="obs-item-iluminacao" placeholder="Observações..." style="width: 100%; padding: 8px; margin-top: 8px; border: 1px solid var(--border); border-radius: 6px; min-height: 50px;"></textarea>
+      </div>
+
+      <!-- Segurança -->
+      <div style="margin-bottom: 20px;">
+        <label style="font-size: 11px; font-weight: 600; text-transform: uppercase; color: var(--ink-light); display: block; margin-bottom: 8px;">Segurança</label>
+        <div class="check-item">
+          <input type="radio" name="item-seguranca" value="ok" onchange="updateItem('item-seguranca', 'ok')">
+          <label class="check-label">✓ Conforme</label>
+        </div>
+        <div class="check-item">
+          <input type="radio" name="item-seguranca" value="nok" onchange="updateItem('item-seguranca', 'nok')">
+          <label class="check-label">✗ Não Conforme</label>
+        </div>
+        <div class="check-item">
+          <input type="radio" name="item-seguranca" value="na" onchange="updateItem('item-seguranca', 'na')">
+          <label class="check-label">- N/A</label>
+        </div>
+        <textarea id="obs-item-seguranca" placeholder="Observações..." style="width: 100%; padding: 8px; margin-top: 8px; border: 1px solid var(--border); border-radius: 6px; min-height: 50px;"></textarea>
+      </div>
+    </div>
+  </div>
+
+  <!-- BOTÕES -->
+  <div class="buttons-area">
+    <button class="btn-primary" onclick="handleSaveVistoria()">💾 Salvar Vistoria</button>
+    <button class="btn-secondary" onclick="handleViewRelatorios()">📊 Ver Relatórios</button>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div id="toast"></div>
+
+<script>
+// ===== CONFIGURAÇÃO SUPABASE =====
+const SUPABASE_URL = 'https://ipoohoifgnrffashrgdk.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imlwb29ob2lmZ25mcmZhc2hyZ2RrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzcyMzQ0NzMsImV4cCI6MjA5MjgxMDQ3M30.Zn5bDMW4HCBRt3FrqZrEEm-_ypeR5l5X6aatlXZSo6k';
+
+let supabase = null;
+let currentUserId = null;
+let currentSession = null;
+let itemStates = {};
+
+// Inicializar
+try {
+  supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+  console.log('✓ Supabase inicializado');
+} catch(e) {
+  console.error('❌ Erro ao inicializar Supabase:', e);
+  showToast('Erro: Supabase não configurado');
+}
+
+// ===== AUTENTICAÇÃO =====
+
+async function checkAuth() {
+  if (!supabase) return;
+  
+  const { data: { session } } = await supabase.auth.getSession();
+  
+  if (session) {
+    currentSession = session;
+    currentUserId = session.user.id;
+    document.getElementById('user-email').textContent = session.user.email;
+    document.body.classList.remove('not-authenticated');
+    document.body.classList.add('authenticated');
+    document.getElementById('modal-login').classList.remove('show');
+    console.log('✓ Usuário autenticado:', session.user.email);
+  } else {
+    document.body.classList.add('not-authenticated');
+    document.getElementById('modal-login').classList.add('show');
+  }
+}
+
+async function handleLogin() {
+  if (!supabase) {
+    showToast('❌ Erro: Supabase não configurado');
+    return;
+  }
+
+  const email = document.getElementById('login-email').value.trim();
+  const password = document.getElementById('login-password').value;
+
+  if (!email || !password) {
+    showToast('⚠️ Preencha email e senha');
+    return;
+  }
+
+  const { data, error } = await supabase.auth.signInWithPassword({
+    email, password
+  });
+
+  if (error) {
+    showToast('❌ ' + error.message);
+    return;
+  }
+
+  currentSession = data.session;
+  currentUserId = data.session.user.id;
+  document.getElementById('user-email').textContent = email;
+  document.body.classList.remove('not-authenticated');
+  document.body.classList.add('authenticated');
+  document.getElementById('modal-login').classList.remove('show');
+  document.getElementById('login-email').value = '';
+  document.getElementById('login-password').value = '';
+  showToast('✓ Login realizado!');
+}
+
+async function handleSignup() {
+  if (!supabase) {
+    showToast('❌ Erro: Supabase não configurado');
+    return;
+  }
+
+  const email = document.getElementById('login-email').value.trim();
+  const password = document.getElementById('login-password').value;
+
+  if (!email || !password) {
+    showToast('⚠️ Preencha email e senha');
+    return;
+  }
+
+  if (password.length < 6) {
+    showToast('⚠️ Senha deve ter no mínimo 6 caracteres');
+    return;
+  }
+
+  const { data, error } = await supabase.auth.signUp({
+    email, password
+  });
+
+  if (error) {
+    showToast('❌ ' + error.message);
+    return;
+  }
+
+  showToast('✓ Cadastro realizado! Verifique seu email.');
+  document.getElementById('login-email').value = '';
+  document.getElementById('login-password').value = '';
+}
+
+async function handleLogout() {
+  if (!supabase) return;
+
+  await supabase.auth.signOut();
+  currentUserId = null;
+  currentSession = null;
+  document.body.classList.add('not-authenticated');
+  document.getElementById('modal-login').classList.add('show');
+  showToast('✓ Logout realizado');
+}
+
+// ===== INTERAÇÕES =====
+
+function toggleSection(e) {
+  const section = e.currentTarget.closest('.section');
+  section.classList.toggle('collapsed');
+}
+
+function updateItem(itemId, status) {
+  itemStates[itemId] = status;
+  console.log('Item atualizado:', itemId, status);
+}
+
+async function handleSaveVistoria() {
+  if (!currentUserId) {
+    showToast('❌ Faça login primeiro');
+    return;
+  }
+
+  const condo = document.getElementById('condo').value.trim();
+  const data = document.getElementById('check-date').value;
+  const hora = document.getElementById('check-time').value;
+
+  if (!condo || !data || !hora) {
+    showToast('⚠️ Preencha condomínio, data e hora');
+    return;
+  }
+
+  try {
+    // Salvar vistoria
+    const { data: vistoria, error: erroVistoria } = await supabase
+      .from('vistorias')
+      .insert([{
+        user_id: currentUserId,
+        condo: condo,
+        data: data,
+        hora: hora,
+        turno: document.getElementById('check-turno').value || null,
+        obs_geral: document.getElementById('obs-geral').value || null
+      }])
+      .select();
+
+    if (erroVistoria) {
+      showToast('❌ Erro: ' + erroVistoria.message);
+      return;
+    }
+
+    const vistoriaId = vistoria[0].id;
+
+    // Salvar itens
+    const itens = [];
+    Object.entries(itemStates).forEach(([itemId, status]) => {
+      const obs = document.getElementById(`obs-${itemId}`)?.value || '';
+      itens.push({
+        vistoria_id: vistoriaId,
+        item: itemId.replace('item-', ''),
+        status: status,
+        obs: obs
+      });
+    });
+
+    if (itens.length > 0) {
+      const { error: erroItens } = await supabase
+        .from('vistoria_itens')
+        .insert(itens);
+
+      if (erroItens) {
+        showToast('⚠️ Vistoria salva, erro ao salvar itens: ' + erroItens.message);
+        return;
+      }
+    }
+
+    showToast(`✓ Vistoria salva: ${condo} - ${formatarData(data)}`);
+    
+    // Limpar
+    document.getElementById('condo').value = '';
+    document.getElementById('check-date').value = new Date().toISOString().split('T')[0];
+    document.getElementById('check-time').value = new Date().toTimeString().slice(0, 5);
+    document.getElementById('obs-geral').value = '';
+    document.querySelectorAll('input[type="radio"]').forEach(r => r.checked = false);
+    document.querySelectorAll('textarea').forEach(t => t.value = '');
+    itemStates = {};
+
+  } catch (error) {
+    showToast('❌ Erro: ' + error.message);
+    console.error(error);
+  }
+}
+
+async function handleViewRelatorios() {
+  if (!currentUserId) {
+    showToast('❌ Faça login primeiro');
+    return;
+  }
+
+  try {
+    const { data: vistorias, error } = await supabase
+      .from('vistorias')
+      .select(`
+        id,
+        condo,
+        data,
+        hora,
+        turno,
+        obs_geral,
+        created_at,
+        vistoria_itens (
+          id,
+          item,
+          status,
+          obs
+        )
+      `)
+      .eq('user_id', currentUserId)
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      showToast('❌ Erro: ' + error.message);
+      return;
+    }
+
+    if (vistorias.length === 0) {
+      showToast('📋 Nenhuma vistoria salva ainda');
+      return;
+    }
+
+    renderizarRelatorios(vistorias);
+    showToast('✓ Relatórios carregados');
+
+  } catch (error) {
+    showToast('❌ Erro: ' + error.message);
+  }
+}
+
+function renderizarRelatorios(vistorias) {
+  let html = '<div style="max-width: 900px; margin: 0 auto; padding: 20px;">';
+  html += '<h2 style="font-family: DM Serif Display; margin-bottom: 20px;">📊 Relatórios</h2>';
+
+  const porCondo = {};
+  vistorias.forEach(v => {
+    if (!porCondo[v.condo]) porCondo[v.condo] = [];
+    porCondo[v.condo].push(v);
+  });
+
+  Object.entries(porCondo).forEach(([condo, vists]) => {
+    html += `<div style="margin-bottom: 24px; padding: 16px; background: white; border-radius: 10px; border: 1px solid var(--border);">`;
+    html += `<h3 style="margin: 0 0 12px 0; color: var(--ink);">🏢 ${condo}</h3>`;
+    
+    vists.forEach(v => {
+      const ok = v.vistoria_itens.filter(i => i.status === 'ok').length;
+      const nok = v.vistoria_itens.filter(i => i.status === 'nok').length;
+      const na = v.vistoria_itens.filter(i => i.status === 'na').length;
+      
+      html += `<div style="padding: 12px; background: var(--gold-pale); border-radius: 8px; margin-bottom: 8px;">`;
+      html += `<div style="font-weight: 600; color: var(--ink);">${formatarData(v.data)} ${v.hora}</div>`;
+      html += `<div style="font-size: 12px; color: var(--ink-light); margin-top: 4px;">`;
+      html += `✓ ${ok} | ✗ ${nok} | - ${na}`;
+      html += `</div>`;
+      if (v.obs_geral) {
+        html += `<div style="font-size: 12px; color: var(--ink-light); margin-top: 6px;"><strong>Obs:</strong> ${v.obs_geral}</div>`;
+      }
+      html += `</div>`;
+    });
+    
+    html += `</div>`;
+  });
+
+  html += '</div>';
+
+  // Mostrar em alert (melhorar depois)
+  alert(`${vistorias.length} vistoria(s) encontrada(s)\n\nDetalhes no console ou crie uma página de relatórios melhor`);
+}
+
+function formatarData(dataISO) {
+  if (!dataISO) return '';
+  const [ano, mes, dia] = dataISO.split('-');
+  return `${dia}/${mes}/${ano}`;
+}
+
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  if (!t) return;
+  t.textContent = msg;
+  t.style.opacity = '1';
+  t.style.transform = 'translateX(-50%) translateY(0)';
+  console.log('Toast:', msg);
+  setTimeout(() => {
+    t.style.opacity = '0';
+    t.style.transform = 'translateX(-50%) translateY(20px)';
+  }, 3000);
+}
+
+// ===== INICIALIZAÇÃO =====
+document.addEventListener('DOMContentLoaded', function() {
+  document.getElementById('check-date').value = new Date().toISOString().split('T')[0];
+  document.getElementById('check-time').value = new Date().toTimeString().slice(0, 5);
+  
+  setTimeout(() => {
+    checkAuth();
+  }, 300);
+});
+
+// Monitorar autenticação
+if (supabase) {
+  supabase.auth.onAuthStateChange((event, session) => {
+    if (session) {
+      currentSession = session;
+      currentUserId = session.user.id;
+    }
+  });
+}
+</script>
+
+</body>
+</html>
